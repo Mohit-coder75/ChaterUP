@@ -23,9 +23,13 @@ Ensure to have the following software installed:
 ### Installation
 
 1. **Clone the repository:**
+
    git clone https://github.com/Mohit-coder75/ChaterUP.git
 
 
 ### UI
 ![ChatterUP UI](./public/images/UI1.png "ChatterUP In Action")
+
+
+
 ![ChatterUP UI](./public/images/UI2.png "ChatterUP In Action")
