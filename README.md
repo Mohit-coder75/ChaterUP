@@ -28,3 +28,4 @@ Ensure to have the following software installed:
 
 ### UI
 ![ChatterUP UI](./images/UI.png "ChatterUP In Action")
+![ChatterUP UI](./images/UI2.png "ChatterUP In Action")
