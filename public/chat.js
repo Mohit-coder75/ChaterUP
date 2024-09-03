@@ -1,222 +1,135 @@
-// socket code in js.
+document.addEventListener("DOMContentLoaded", () => {
+  const socket = io("http://localhost:3000");
 
-const socket = io.connect('http://localhost:3000');
-const username = prompt('Enter your name');
-// Emit the username to the server
-socket.emit("join", username);
+  // Prompt for the username immediately after DOM is loaded
+  let username;
+  while (!username) {
+    username = prompt('Enter your name');
+  }
 
-// Get the elements
-const messageInput = document.getElementById("messageInput"); // Correct ID
-const messageList = document.querySelector(".chat-messages"); // Select the correct message list container
-const sendButton = document.getElementById("sendButton"); // Correct ID
-const welcomeMessage = document.querySelector(".welcome-message");
-const typingIndicator = document.querySelector(".typing-indicator");
-const connectedUsersList = document.querySelector(".connected-users ul"); // User list container
+  // Step 2: Wait for the socket to connect before emitting the username
+  socket.on("connect", () => {
+    socket.emit("join", username);
 
-// Display the welcome message
-welcomeMessage.textContent = `Welcome ${username}`;
+    // Set up chat event listeners after successful connection
+    setupChatListeners(socket, username);
+  });
 
-
-// sendButton.addEventListener('click', function () {
-//     // Read the message from input and send to server.
-//     const message = messageInput.value;
-//     if (message) {
-//         socket.emit('new_message', message); // Emitting the message to the server
-
-//         // Add message to the list 
-//         const messageElement = document.createElement("div");
-//         messageElement.classList.add("message");
-//         messageElement.innerText = username + ": " + message;
-//         messageList.appendChild(messageElement);
-
-//         // Reset the value of textbox to empty
-//         messageInput.value = '';
-//     }
-// });
-
-sendButton.addEventListener('click', function () {
-    // Read the message from input and send to server.
-    const message = messageInput.value;
-    if (message) {
-        // Emitting the message to the server
-        socket.emit('new_message', message); 
-
-        // Create the main message container
-        const messageElement = document.createElement("div");
-        messageElement.classList.add("message");
-        
-        //  // Set the background color for the sent message
-        //  messageElement.style.backgroundColor = '#34d670'; 
-         
-
-        // Create the profile picture div
-        const profilePicElement = document.createElement("div");
-        profilePicElement.classList.add("profile-pic");
-        profilePicElement.style.backgroundImage = "url('images/user1.png')"; // Replace with actual user image URL if available
-        messageElement.appendChild(profilePicElement);
-
-        // Create the message content container
-        const messageContentElement = document.createElement("div");
-        messageContentElement.classList.add("message-content");
-
-        // Create the username element
-        const usernameElement = document.createElement("span");
-        usernameElement.classList.add("username");
-        usernameElement.textContent = username; // Display the sender's username
-        messageContentElement.appendChild(usernameElement);
-
-        // Create the message text element
-        const messageTextElement = document.createElement("span");
-        messageTextElement.classList.add("message-text");
-        messageTextElement.textContent = message; // Display the content of the message
-        messageContentElement.appendChild(messageTextElement);
-
-        // Create the timestamp element
-        const timestampElement = document.createElement("span");
-        timestampElement.classList.add("timestamp");
-        timestampElement.textContent = new Date().toLocaleTimeString(); // Display the current time
-        messageContentElement.appendChild(timestampElement);
-
-        // Append the message content to the main message container
-        messageElement.appendChild(messageContentElement);
-
-        // Append the constructed message element to the message list
-        messageList.appendChild(messageElement);
-
-        // Reset the value of the textbox to empty
-        messageInput.value = '';
-        socket.emit('stop_typing');
-    }
-});
-// Typing indicator events
-messageInput.addEventListener('input', () => {
-    if (messageInput.value) {
-        socket.emit('typing', username);
-    } else {
-        socket.emit('stop_typing');
-    }
-});
-// Hide typing indicator when clicking outside the input box
-messageInput.addEventListener('blur', () => {
-    socket.emit('stop_typing');
+  // Log connection errors to the console
+  socket.on("connect_error", (err) => {
+    console.error("Connection Error: ", err.message);
+  });
 });
 
-socket.on('display_typing', (username) => {
-    typingIndicator.textContent = `${username} is typing...`;
-});
+// Function to set up chat event listeners
+function setupChatListeners(socket, username) {
+  let typingTimeout;
+  const msgerForm = document.querySelector(".msger-inputarea");
+  const msgerInput = document.querySelector(".msger-input");
+  const msgerChat = document.querySelector(".msger-chat");
+  const connectedUsersList = document.querySelector(".connected-users ul");
 
-socket.on('stop_typing', () => {
-    typingIndicator.textContent = '';
-});
-// Update connected users panel
-socket.on('update_user_list', (users) => {
-    connectedUsersList.innerHTML = ''; // Clear the current list
-    users.forEach(user => {
-        const userElement = document.createElement('li');
-        userElement.innerHTML = `<span class="online-dot"></span>${user}`;
-        connectedUsersList.appendChild(userElement);
+  // Event listener for sending messages
+  msgerForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const msgText = msgerInput.value;
+    if (!msgText) return;
+
+    appendMessage(username, "right", msgText);
+    msgerInput.value = "";
+    socket.emit("new_message", msgText);
+  });
+
+  // Listen for incoming messages
+  socket.on("broadcast_message", (data) => {
+    appendMessage(data.username, "left", data.message);
+  });
+
+  // Listen for updates to the connected users list
+  socket.on("update_user_list", (users) => {
+    updateConnectedUsers(users);
+  });
+
+  // Listen for user join events
+  socket.on("user_joined", (joinedUsername) => {
+    appendMessage("System", "center", `${joinedUsername} has joined the chat.`);
+  });
+
+  // Listen for old messages
+  socket.on("load_messages", (messages) => {
+    messages.forEach((msg) => {
+      appendMessage(msg.username, "left", msg.message, new Date(msg.timestamp));
     });
+  });
+  msgerInput.addEventListener("focus", () => {
+    // Emit typing event when the input is focused
+    socket.emit("typing", username);
+  });
+  msgerInput.addEventListener("blur", () => {
+    // Emit stop typing event when the input loses focus
+    socket.emit("stop_typing");
+  });
 
-    // Update the connected users count
-    document.querySelector('.connected-header').textContent = `Connected users ${users.length}`;
-});
-// Display messages on the UI.
-// socket.on('load_messages', (messages) => {
-//     messages.forEach(message => {
-//         const messageElement = document.createElement("div");
-//         messageElement.classList.add("message");
-//         messageElement.innerText = new Date(message.timestamp).toLocaleTimeString() + " - " + message.username + ": " + message.message;
-//         messageList.appendChild(messageElement);
-//     });
-// });
-// Display messages on the UI.
-socket.on('load_messages', (messages) => {
-    messages.forEach(message => {
-        // Create the main message container
-        const messageElement = document.createElement("div");
-        messageElement.classList.add("message");
+  // Typing event listeners
+  
+  msgerInput.addEventListener("input", () => {
+    // Clear existing timeout
+    clearTimeout(typingTimeout);
 
-        // Create the profile picture div
-        const profilePicElement = document.createElement("div");
-        profilePicElement.classList.add("profile-pic");
-        profilePicElement.style.backgroundImage = "url('images/user1.png')"; // Replace with actual user image URL if available
-        messageElement.appendChild(profilePicElement);
+    // Emit typing event if there's input
+    socket.emit("typing", username);
 
-        // Create the message content container
-        const messageContentElement = document.createElement("div");
-        messageContentElement.classList.add("message-content");
+    // Set a timeout to emit stop typing if the user stops typing
+    typingTimeout = setTimeout(() => {
+      socket.emit("stop_typing");
+    }, 1000); // Adjust the timeout duration as needed
+  });
 
-        // Create the username element
-        const usernameElement = document.createElement("span");
-        usernameElement.classList.add("username");
-        usernameElement.textContent = message.username;
-        messageContentElement.appendChild(usernameElement);
+ 
+}
 
-        // Create the message text element
-        const messageTextElement = document.createElement("span");
-        messageTextElement.classList.add("message-text");
-        messageTextElement.textContent = message.message;
-        messageContentElement.appendChild(messageTextElement);
+// Helper functions
+function showTypingIndicator(username) {
+  const typingIndicator = document.querySelector(".typing-indicator");
+  typingIndicator.textContent = `${username} is typing...`;
+  typingIndicator.style.display = "block";
+}
 
-        // Create the timestamp element
-        const timestampElement = document.createElement("span");
-        timestampElement.classList.add("timestamp");
-        timestampElement.textContent = new Date(message.timestamp).toLocaleTimeString();
-        messageContentElement.appendChild(timestampElement);
+function hideTypingIndicator() {
+  const typingIndicator = document.querySelector(".typing-indicator");
+  typingIndicator.style.display = "none";
+}
+function appendMessage(name, side, text, date = new Date()) {
+  const msgerChat = document.querySelector(".msger-chat");
+  const msgHTML = `
+    <div class="msg ${side}-msg">
+      <div class="msg-img" style="background-image: url(./images/user1.png)"></div>
+      <div class="msg-bubble">
+        <div class="msg-info">
+          <div class="msg-info-name">${name}</div>
+          <div class="msg-info-time">${formatDate(date)}</div>
+        </div>
+        <div class="msg-text">${text}</div>
+      </div>
+    </div>
+  `;
+  msgerChat.insertAdjacentHTML("beforeend", msgHTML);
+  msgerChat.scrollTop += 500;
+}
 
-        // Append message content to the main message container
-        messageElement.appendChild(messageContentElement);
+function updateConnectedUsers(users) {
+  const connectedUsersList = document.querySelector(".connected-users ul");
+  connectedUsersList.innerHTML = "";
+  users.forEach(user => {
+    const userHTML = `<li><span class="online-dot"></span> ${user}</li>`;
+    connectedUsersList.insertAdjacentHTML("beforeend", userHTML);
+  });
+}
 
-        // Append the constructed message element to the message list
-        messageList.appendChild(messageElement);
-    });
-});
 
 
-// // Listen for broadcast message, and add it to the list.
-// socket.on('broadcast_message', (userMessage) => {
-//     const messageElement = document.createElement("div");
-//     messageElement.classList.add("message");
-//     messageElement.innerText = userMessage.username + ": " + userMessage.message;
-//     messageList.appendChild(messageElement);
-// });
-// Listen for broadcast message, and add it to the list.
-socket.on('broadcast_message', (userMessage) => {
-    // Create the main message container
-    const messageElement = document.createElement("div");
-    messageElement.classList.add("message");
-
-    // Create the profile picture div
-    const profilePicElement = document.createElement("div");
-    profilePicElement.classList.add("profile-pic");
-    profilePicElement.style.backgroundImage = "url('images/user1.png')"; // Replace with actual user image URL if available
-    messageElement.appendChild(profilePicElement);
-
-    // Create the message content container
-    const messageContentElement = document.createElement("div");
-    messageContentElement.classList.add("message-content");
-
-    // Create the username element
-    const usernameElement = document.createElement("span");
-    usernameElement.classList.add("username");
-    usernameElement.textContent = userMessage.username;
-    messageContentElement.appendChild(usernameElement);
-
-    // Create the message text element
-    const messageTextElement = document.createElement("span");
-    messageTextElement.classList.add("message-text");
-    messageTextElement.textContent = userMessage.message;
-    messageContentElement.appendChild(messageTextElement);
-
-    // Create the timestamp element
-    const timestampElement = document.createElement("span");
-    timestampElement.classList.add("timestamp");
-    timestampElement.textContent = new Date().toLocaleTimeString(); // Using the current time for the broadcasted message
-    messageContentElement.appendChild(timestampElement);
-
-    // Append message content to the main message container
-    messageElement.appendChild(messageContentElement);
-
-    // Append the constructed message element to the message list
-    messageList.appendChild(messageElement);
-});
+function formatDate(date) {
+  const hours = "0" + date.getHours();
+  const minutes = "0" + date.getMinutes();
+  return `${hours.slice(-2)}:${minutes.slice(-2)}`;
+}
