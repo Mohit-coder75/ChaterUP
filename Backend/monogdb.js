@@ -4,8 +4,7 @@ const url="mongodb+srv://mohit_cloud:Mohit13@cluster0.mgwm2.mongodb.net/?retryWr
 const connectDB =async ()=>{
     try{
         await mongoose.connect(url,{
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
+           
         })
         console.log("MongoDb is connected successfully");
 
