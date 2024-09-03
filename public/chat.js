@@ -84,6 +84,13 @@ function setupChatListeners(socket, username) {
       socket.emit("stop_typing");
     }, 1000); // Adjust the timeout duration as needed
   });
+  socket.on("display_typing", (typingUsername) => {
+    showTypingIndicator(typingUsername);
+  });
+
+  socket.on("stop_typing", () => {
+    hideTypingIndicator();
+  });
 
  
 }
