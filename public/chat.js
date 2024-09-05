@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const socket = io("http://localhost:3000");
+  const socket = io("https://chaterup-6.onrender.com");
 
   // Prompt for the username immediately after DOM is loaded
   let username;
