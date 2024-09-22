@@ -1,5 +1,5 @@
 import mongoose from "mongoose"
-const url="mongodb+srv://mohit_cloud:Mohit13@cluster0.mgwm2.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0/chatterUP"
+const url="mongodb+srv://mohit_cloud:*********@cluster0.mgwm2.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0/chatterUP"
 
 const connectDB =async ()=>{
     try{
